@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fb-1",
+    "name": "Souffa Bakari",
+    "before_amount": "0 FCFA",
+    "after_amount": "350 000 FCFA",
+    "time_frame": "En 18 jours",
+    "before_image_url": "https://drive.google.com/file/d/1ufBs7y_MYdOcw9st0BpScHoy_3hV26jW/view?usp=sharing",
+    "after_image_url": "https://drive.google.com/file/d/1ufBs7y_MYdOcw9st0BpScHoy_3hV26jW/view?usp=sharing",
+    "sort_order": 1,
+    "description": "Une réussite marquante de Souffa Bakari qui de 0 est passé à un total de 350 000 FCFA en seulement 18 jours de travail !",
+    "award_type": "exceptional_result",
+    "milestone_title": "Dépassement d'espoir",
+    "is_active": true,
+    "country_flag": "🇨🇮 Côte d'Ivoire"
+  },
+  {
+    "id": "fb-2",
+    "name": "Aladin Moussa",
+    "before_amount": "0 FCFA",
+    "after_amount": "475 000 XAF",
+    "time_frame": "En 28 jours",
+    "before_image_url": "",
+    "after_image_url": "https://drive.google.com/file/d/1vKMy7iKAc4yUaNI-kClV9ovGKbe8HiWK/view?usp=sharing",
+    "sort_order": 2,
+    "description": "Détermination et persévérance payantes ! Aladin Moussa a généré 475 000 XAF de profit en moins d'un mois (28 jours) !",
+    "award_type": "first_sale",
+    "milestone_title": "Premiers gains majeurs",
+    "is_active": true,
+    "country_flag": "🇨🇲 Cameroon"
+  },
+  {
+    "id": "fb-3",
+    "name": "Mr. YAMIS",
+    "before_amount": "0 FCFA",
+    "after_amount": "60 000 FCFA",
+    "time_frame": "En 7 jours",
+    "before_image_url": "",
+    "after_image_url": "https://drive.google.com/file/d/1vKMy7iKAc4yUaNI-kClV9ovGKbe8HiWK/view?usp=sharing",
+    "sort_order": 3,
+    "description": "Une merveilleuse entrée en matière pour Mr. YAMIS avec 60 000 FCFA cumulés lors de sa première semaine d'activité !",
+    "award_type": "first_withdrawal",
+    "milestone_title": "Première victoire",
+    "is_active": true,
+    "country_flag": "🇸🇳 Sénégal"
+  }
+]

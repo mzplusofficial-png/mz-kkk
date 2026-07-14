@@ -1,0 +1,86 @@
+[
+  {
+    "id": "vsw4fhs",
+    "received_at": "2026-06-19T15:56:05.996Z",
+    "payload": {
+      "event": "failed.sale",
+      "body": {
+        "event": "failed.sale",
+        "product_id": "prd_qmbo2lkc",
+        "email": "test_fail@example.com",
+        "data": {
+          "product_id": "prd_qmbo2lkc",
+          "email": "test_fail@example.com"
+        }
+      },
+      "status": "rejected",
+      "details": "Événement d'échec de la vente reçu (failed.sale) : Un client a initié le processus de commande pour le produit \"MZ+ Premium\" mais n'a pas finalisé son paiement. La transaction a été signalée en échec ou abandonnée par Chariow.",
+      "product_id": "prd_qmbo2lkc",
+      "email": "test_fail@example.com",
+      "matched_product_name": "MZ+ Premium"
+    }
+  },
+  {
+    "id": "xppw96a",
+    "received_at": "2026-06-19T15:06:33.290Z",
+    "payload": {
+      "event": "successful.sale",
+      "body": {
+        "event": "successful.sale",
+        "product_id": "prd_qmbo2lkc",
+        "email": "test@example.com",
+        "data": {
+          "product_id": "prd_qmbo2lkc",
+          "email": "test@example.com"
+        }
+      },
+      "status": "success",
+      "details": " [Utilisateur non trouvé par e-mail: test@example.com] [Attribué par défaut au dernier utilisateur actif car email de test] Vente réussie (successful.sale). Nouvelle commission a9d6410b-9552-458a-907f-34ae40bf5a8e de 5000 FCFA créée automatiquement en 'approved' pour l'affilié 9db0b959-9ad6-479f-a8d4-fc2a902d75e1.",
+      "product_id": "prd_qmbo2lkc",
+      "email": "test@example.com",
+      "matched_product_name": "MZ+ Premium"
+    }
+  },
+  {
+    "id": "2vsinbu",
+    "received_at": "2026-06-19T15:06:26.572Z",
+    "payload": {
+      "event": "successful.sale",
+      "body": {
+        "event": "successful.sale",
+        "product_id": "prd_qmbo2lkc",
+        "email": "test@example.com",
+        "data": {
+          "product_id": "prd_qmbo2lkc",
+          "email": "test@example.com"
+        }
+      },
+      "status": "error",
+      "details": "Erreur de base de données lors de la recherche des commissions : invalid input syntax for type uuid: \"mz-plus-premium-virtual\"",
+      "product_id": "prd_qmbo2lkc",
+      "email": "test@example.com",
+      "matched_product_name": "MZ+ Premium"
+    }
+  },
+  {
+    "id": "23x9nqy",
+    "received_at": "2026-06-19T15:04:32.882Z",
+    "payload": {
+      "event": "successful.sale",
+      "body": {
+        "event": "successful.sale",
+        "product_id": "prd_qmbo2lkc",
+        "email": "test@example.com",
+        "data": {
+          "product_id": "prd_qmbo2lkc",
+          "email": "test@example.com"
+        }
+      },
+      "status": "error",
+      "details": "Erreur de base de données lors de la recherche des commissions : invalid input syntax for type uuid: \"mz-plus-premium-virtual\"",
+      "product_id": "prd_qmbo2lkc",
+      "email": "test@example.com",
+      "matched_product_name": "MZ+ Premium"
+    }
+  }
+]

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sparkles, X, AlertTriangle, Crown, Rocket, Bell } from 'lucide-react';
+import { Sparkles, X, AlertTriangle, Crown, Rocket, Bell, Clock, ShieldCheck, LogOut } from 'lucide-react';
 import { supabase } from './services/supabase.ts';
 import { UserProfile, Wallet, TabId, Product } from './types.ts';
 import { LandingPage } from './components/LandingPage.tsx';
@@ -252,7 +252,7 @@ const App: React.FC = () => {
     try {
       const userEmail = email?.toLowerCase().trim() || "";
       
-      let { data: profile } = await supabase.from('users').select('id, full_name, referral_code, rank_id, email, is_admin, admin_role, rpa_balance, rpa_points, xp, user_level, created_at, last_active_at, last_premium_trigger_at, premium_trigger_history, store_preferences, country_code').eq('id', userId).maybeSingle();
+      let { data: profile } = await supabase.from('users').select('id, full_name, referral_code, rank_id, email, is_admin, admin_role, rpa_balance, rpa_points, xp, user_level, created_at, last_active_at, last_premium_trigger_at, premium_trigger_history, store_preferences, country_code, is_active').eq('id', userId).maybeSingle();
       
       let challengeState = null;
       if (profile) {
@@ -283,7 +283,8 @@ const App: React.FC = () => {
           referral_code: newRefCode, 
           rank_id: 1, 
           is_admin: false, 
-          user_level: 'standard'
+          user_level: 'standard',
+          is_active: false
         };
         const { data: upsertedProfile } = await supabase.from('users').upsert(newProfileData, { onConflict: 'id' }).select('*').single();
         profile = upsertedProfile || (newProfileData as any);
@@ -321,7 +322,8 @@ const App: React.FC = () => {
         last_premium_trigger_at: profile?.last_premium_trigger_at,
         premium_trigger_history: profile?.premium_trigger_history || [],
         store_preferences: { ...(profile?.store_preferences || {}) },
-        country_code: profile?.country_code
+        country_code: profile?.country_code,
+        is_active: profile?.is_active !== undefined ? (profile.is_active === null ? true : profile.is_active) : true
       };
 
       // Calculate the correct rank_id from xp immediately.
@@ -1729,6 +1731,53 @@ const App: React.FC = () => {
 
   const adminEmails = ['google@gmail.com', 'millionaireobject@gmail.com', 'mzplus1@gmail.com', 'utilisateur26@gmail.com', 'ivan1@gmail.com', 'mr.sahaivan@gmail.com'];
   const isAdmin = (userProfile?.email && adminEmails.includes(userProfile.email.toLowerCase())) && (userProfile?.is_admin === true);
+
+  if (userProfile && userProfile.is_active === false && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#070809] text-white flex flex-col items-center justify-center p-6 text-center select-none font-sans relative overflow-hidden">
+        {/* Decorative Grid and Ambient Lights */}
+        <div className="absolute inset-0 bg-[#0d0f12] bg-[radial-gradient(ellipse_at_center,rgba(201,168,76,0.02),transparent_60%)] pointer-events-none" />
+        <div className="absolute top-[-25%] left-[-25%] w-[70%] h-[70%] bg-amber-500/2 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-25%] right-[-25%] w-[70%] h-[70%] bg-amber-500/2 blur-[150px] rounded-full pointer-events-none" />
+
+        <div className="w-full max-w-md bg-[#0d0e12]/95 border border-yellow-500/20 rounded-[2.5rem] p-10 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] relative z-10 space-y-8 animate-fade-in">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+            <Clock className="animate-pulse" size={36} />
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-black uppercase text-white tracking-wide">
+              Validation En Attente ⏳
+            </h2>
+            <p className="text-neutral-400 text-xs leading-relaxed max-w-sm mx-auto">
+              Bonjour <strong className="text-white">{userProfile.full_name}</strong>, votre compte a bien été enregistré. 
+              Pour des raisons de sécurité, chaque inscription doit être manuellement validée par un administrateur MZ+ avant de pouvoir accéder à la plateforme.
+            </p>
+            <p className="text-neutral-500 text-[11px] font-mono leading-relaxed max-w-xs mx-auto p-3 bg-neutral-900/60 rounded-xl border border-white/5">
+              Email : {userProfile.email}
+            </p>
+          </div>
+
+          <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-3.5 text-left text-[11px] text-amber-400">
+            <ShieldCheck className="shrink-0 mt-0.5" size={16} />
+            <div>
+              <span className="font-bold block uppercase tracking-wider mb-0.5">Que devez-vous faire ?</span>
+              Rien du tout ! Un e-mail ou une notification vous sera envoyé dès que votre accès aura été approuvé par notre équipe.
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button
+              onClick={handleLogout}
+              className="w-full px-5 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 font-bold uppercase text-[10px] tracking-widest text-[#d4d4d4] transition-all flex items-center justify-center gap-2"
+            >
+              <LogOut size={14} /> Se déconnecter / Autre Compte
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleShareClose = () => {
     setShowSharePopup(false);

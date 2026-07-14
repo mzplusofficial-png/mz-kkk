@@ -17,19 +17,6 @@ const getEnvVar = (key: string): string => {
 };
 
 // Use environment variables exclusively
-const RAW_URL = getEnvVar('VITE_SUPABASE_URL');
-// Sanitize URL: remove trailing slashes and common API suffixes that cause "Invalid path" errors
-const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
-
-if (!RAW_URL) {
-  console.error("[Supabase Service] VITE_SUPABASE_URL env variable is missing or empty.");
-}
-if (!SUPABASE_ANON_KEY) {
-  console.error("[Supabase Service] VITE_SUPABASE_ANON_KEY env variable is missing or empty.");
-}
-
-const SUPABASE_URL = (RAW_URL || '').replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
-
 const customFetch = (url: URL | RequestInfo, options?: RequestInit): Promise<Response> => {
   const urlStr = typeof url === 'string' ? url : (url as any).url || url.toString();
   const method = options?.method || 'GET';
@@ -67,23 +54,56 @@ const customFetch = (url: URL | RequestInfo, options?: RequestInit): Promise<Res
   return performanceAudit.handleQueryIntercept(urlStr, method, headers, body, fetchPromise);
 };
 
-// Create a singleton client
-const supabaseInstance = createClient(
-  SUPABASE_URL || 'https://placeholder-fill-env-vars.supabase.co', 
-  SUPABASE_ANON_KEY || 'placeholder',
-  {
-    global: {
-      fetch: customFetch
-    }
-  }
-);
+let supabaseInstance: any = null;
 
-// Monkey-patch channel to track realtime subscriptions
-const originalChannel = supabaseInstance.channel;
-supabaseInstance.channel = function(this: any, name: string, options?: any) {
-  performanceAudit.recordSubscription(name);
-  return originalChannel.call(this, name, options);
+const getSupabaseInstance = () => {
+  if (!supabaseInstance) {
+    const RAW_URL = getEnvVar('VITE_SUPABASE_URL');
+    const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
+
+    if (!RAW_URL) {
+      console.error("[Supabase Service] VITE_SUPABASE_URL env variable is missing or empty.");
+    }
+    if (!SUPABASE_ANON_KEY) {
+      console.error("[Supabase Service] VITE_SUPABASE_ANON_KEY env variable is missing or empty.");
+    }
+
+    const SUPABASE_URL = (RAW_URL || '').replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+
+    supabaseInstance = createClient(
+      SUPABASE_URL || 'https://placeholder-fill-env-vars.supabase.co', 
+      SUPABASE_ANON_KEY || 'placeholder',
+      {
+        global: {
+          fetch: customFetch
+        }
+      }
+    );
+
+    // Monkey-patch channel to track realtime subscriptions
+    const originalChannel = supabaseInstance.channel;
+    supabaseInstance.channel = function(this: any, name: string, options?: any) {
+      performanceAudit.recordSubscription(name);
+      return originalChannel.call(this, name, options);
+    };
+  }
+  return supabaseInstance;
 };
 
-export const supabase = supabaseInstance;
+// Create a Proxy to transparently delegate properties and methods to the lazily initialized client
+export const supabase = new Proxy({} as any, {
+  get(target, prop) {
+    const instance = getSupabaseInstance();
+    const value = instance[prop];
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  },
+  set(target, prop, value) {
+    const instance = getSupabaseInstance();
+    instance[prop] = value;
+    return true;
+  }
+});
 

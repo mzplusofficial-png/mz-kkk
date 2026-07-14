@@ -967,6 +967,7 @@ async function startServer() {
             avatar_url: preExistingUser.avatar_url || null,
             is_admin: preExistingUser.is_admin || false,
             admin_role: preExistingUser.admin_role || null,
+            is_active: false,
             user_level: preExistingUser.user_level || 'standard',
             referral_code: preExistingUser.referral_code || ('MZ' + Math.random().toString(36).substring(2, 8).toUpperCase()),
             referral_code_used: referralCode || preExistingUser.referral_code_used || null,
@@ -1150,13 +1151,14 @@ async function startServer() {
               rank_id: 1,
               user_level: 'standard',
               rpa_points: 0,
-              rpa_balance: 0
+              rpa_balance: 0,
+              is_active: false
             });
 
             if (insertErr) {
-              console.error('[Admin Auth Backend] Failed to manually create user record in public.users:', insertErr);
+               console.error('[Admin Auth Backend] Failed to manually create user record in public.users:', insertErr);
             } else {
-              console.log(`[Admin Auth Backend] Successfully inserted record into public.users for: ${cleanEmail}`);
+               console.log(`[Admin Auth Backend] Successfully inserted record into public.users for: ${cleanEmail}`);
             }
           } else {
             console.log(`[Admin Auth Backend] [STEP 4/5] Profile was already auto-created by database trigger for: ${cleanEmail}. Patching with correct registration metadata (phone, full_name, country)...`);
@@ -1164,13 +1166,14 @@ async function startServer() {
               full_name: name,
               country: country,
               phone: phone || null,
-              referral_code_used: referralCode || null
+              referral_code_used: referralCode || null,
+              is_active: false
             }).eq('id', authUser.id);
             
             if (patchErr) {
-              console.error('[Admin Auth Backend] Failed to patch auto-created trigger profile with correct registration details:', patchErr.message);
+               console.error('[Admin Auth Backend] Failed to patch auto-created trigger profile with correct registration details:', patchErr.message);
             } else {
-              console.log('[Admin Auth Backend] Succeeded in patching auto-created trigger profile with complete registration details (including phone).');
+               console.log('[Admin Auth Backend] Succeeded in patching auto-created trigger profile with complete registration details (including phone).');
             }
           }
         }
@@ -1181,7 +1184,7 @@ async function startServer() {
 
       return res.status(200).json({ 
         success: true, 
-        message: 'Compte créé et activé avec succès !',
+        message: 'Compte créé avec succès ! En attente de validation par un administrateur.',
         userId: authUser?.id
       });
 

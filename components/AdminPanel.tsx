@@ -95,7 +95,7 @@ export const AdminPanel: React.FC<{
       // 2. Fetch display lists with strict limits and without heavy columns like store_preferences
       const listQueries = [
         // Selecting individual columns instead of '*' prevents downloading the heavy 'store_preferences' JSON for all users
-        safeQuery(supabase.from('users').select('id, full_name, email, user_level, xp, rpa_points, rpa_balance, created_at, is_admin, wallets(balance)').order('created_at', { ascending: false }).range(usersPage * PAGE_SIZE, (usersPage + 1) * PAGE_SIZE - 1)),
+        safeQuery(supabase.from('users').select('id, full_name, email, user_level, xp, rpa_points, rpa_balance, created_at, is_admin, is_active, wallets(balance)').order('created_at', { ascending: false }).range(usersPage * PAGE_SIZE, (usersPage + 1) * PAGE_SIZE - 1)),
         safeQuery(supabase.from('commissions').select('id, amount, status, user_id, product_id, created_at, products(name), users:user_id(full_name)').order('created_at', { ascending: false }).limit(30)),
         safeQuery(supabase.from('withdrawals').select('id, amount, status, method, account, created_at, user_id, users(full_name, email)').order('created_at', { ascending: false }).range(withdrawalsPage * PAGE_SIZE, (withdrawalsPage + 1) * PAGE_SIZE - 1)),
         safeQuery(supabase.from('rpa_submissions').select('id, user_id, status, points_awarded, data, created_at, users(full_name, email, rpa_points, rpa_balance)').order('created_at', { ascending: false }).range(rpaPage * PAGE_SIZE, (rpaPage + 1) * PAGE_SIZE - 1)),
@@ -664,74 +664,184 @@ const PaginationBar = ({ page, setPage, hasMore }: { page: number; setPage: (p: 
 };
 
 const AdminUserManagement = ({ users, activitySummary, searchTerm, setSearchTerm, onRefresh, page, setPage }: any) => {
-  const filteredUsers = users.filter((u: any) => 
-    u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending'>('all');
+
+  const filteredUsers = users.filter((u: any) => {
+    const matchesSearch = 
+      u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterStatus === 'pending') {
+      return matchesSearch && u.is_active === false;
+    }
+    return matchesSearch;
+  });
 
   const updateUser = async (id: string, updates: any) => {
-    await supabase.from('users').update(updates).eq('id', id);
-    onRefresh();
+    const { error } = await supabase.from('users').update(updates).eq('id', id);
+    if (error) {
+      alert("Erreur lors de la mise à jour de l'utilisateur : " + error.message);
+    } else {
+      onRefresh();
+    }
   };
 
   const hasMore = users.length >= 30;
 
   return (
     <div className="space-y-6">
-      <div className="relative px-2 md:px-0">
-        <Search className="absolute left-6 md:left-4 top-1/2 -translate-y-1/2 text-neutral-600" size={18} />
-        <input className="w-full bg-neutral-900 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-xs text-white outline-none focus:border-yellow-600" placeholder="Rechercher un membre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 px-2 md:px-0">
+          <Search className="absolute left-6 md:left-4 top-1/2 -translate-y-1/2 text-neutral-600" size={18} />
+          <input className="w-full bg-neutral-900 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-xs text-white outline-none focus:border-yellow-600" placeholder="Rechercher un membre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex bg-neutral-900/80 border border-white/5 rounded-2xl p-1 gap-1 self-start md:self-auto mx-2 md:mx-0 shrink-0">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filterStatus === 'all' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10' : 'text-neutral-400 hover:text-white'}`}
+          >
+            Tous les membres
+          </button>
+          <button
+            onClick={() => setFilterStatus('pending')}
+            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${filterStatus === 'pending' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10' : 'text-neutral-400 hover:text-white'}`}
+          >
+            En attente
+            {users.filter((u: any) => u.is_active === false).length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-mono ${filterStatus === 'pending' ? 'bg-black text-amber-500' : 'bg-red-600 text-white animate-pulse'}`}>
+                {users.filter((u: any) => u.is_active === false).length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
       
       {/* Mobile View: Cards */}
       <div className="grid grid-cols-1 gap-4 md:hidden px-2">
-        {filteredUsers.map((u: any) => (
-          <div key={u.id} className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="font-bold text-sm">{u.full_name}</div>
-                <div className="text-[10px] opacity-50 font-mono truncate max-w-[150px]">{u.email}</div>
-              </div>
-              <EliteBadge variant={u.user_level}>{u.user_level === 'niveau_mz_plus' ? 'MZ+' : 'Standard'}</EliteBadge>
-            </div>
-            <div className="flex flex-col gap-3 pt-2 border-t border-white/5">
-              <div className="flex justify-between items-center">
-                <div className="font-mono text-purple-400 font-bold text-xs">{u.xp || 0} XP</div>
-                <CurrencyDisplay amount={u.wallets?.[0]?.balance || 0} className="font-mono text-yellow-500 text-xs font-black" vertical={true} />
-              </div>
-              <div className="flex justify-end gap-2 text-[9px] font-black uppercase text-neutral-500 tracking-wider">
-                <span>Lecture seule (Modifications BDD)</span>
-              </div>
-            </div>
+        {filteredUsers.length === 0 ? (
+          <div className="p-8 text-center bg-neutral-900/30 border border-white/5 rounded-3xl text-neutral-500 text-xs font-medium">
+            Aucun membre trouvé.
           </div>
-        ))}
+        ) : (
+          filteredUsers.map((u: any) => (
+            <div key={u.id} className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold text-sm flex items-center gap-2">
+                    {u.full_name}
+                    {u.is_admin && <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded">Admin</span>}
+                  </div>
+                  <div className="text-[10px] opacity-50 font-mono truncate max-w-[150px]">{u.email}</div>
+                </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  <EliteBadge variant={u.user_level}>{u.user_level === 'niveau_mz_plus' ? 'MZ+' : 'Standard'}</EliteBadge>
+                  {u.is_active === false ? (
+                    <span className="px-2 py-0.5 bg-red-600/20 text-red-500 text-[8px] font-black rounded uppercase tracking-wider border border-red-500/20">En attente</span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-emerald-600/20 text-emerald-500 text-[8px] font-black rounded uppercase tracking-wider border border-emerald-500/20">Validé</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 pt-2 border-t border-white/5">
+                <div className="flex justify-between items-center">
+                  <div className="font-mono text-purple-400 font-bold text-xs">{u.xp || 0} XP</div>
+                  <CurrencyDisplay amount={u.wallets?.[0]?.balance || 0} className="font-mono text-yellow-500 text-xs font-black" vertical={true} />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  {u.is_active === false ? (
+                    <button 
+                      onClick={() => updateUser(u.id, { is_active: true })}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black font-black rounded-xl transition-all flex items-center justify-center gap-1.5 uppercase tracking-widest text-[9px] w-full"
+                    >
+                      <Check size={12} strokeWidth={3} /> Valider le compte
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => updateUser(u.id, { is_active: false })}
+                      className="px-4 py-2 bg-neutral-900 border border-red-500/30 text-red-500 hover:bg-red-950/20 font-black rounded-xl transition-all flex items-center justify-center gap-1.5 uppercase tracking-widest text-[9px] w-full"
+                    >
+                      <X size={12} strokeWidth={3} /> Bloquer l'accès
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Desktop View: Table */}
       <div className="hidden md:block bg-[#0a0a0a] border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
         <table className="w-full text-left text-xs">
           <thead className="bg-black/40 text-[9px] font-black uppercase text-neutral-500 border-b border-neutral-800">
-            <tr><th className="p-6">Ambassadeur</th><th className="p-6">XP</th><th className="p-6">Status</th><th className="p-6">Solde</th><th className="p-6 text-right">Actions</th></tr>
+            <tr>
+              <th className="p-6">Ambassadeur</th>
+              <th className="p-6">XP</th>
+              <th className="p-6">Niveau</th>
+              <th className="p-6">Statut de validation</th>
+              <th className="p-6">Solde</th>
+              <th className="p-6 text-right">Actions</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-neutral-800/50">
-            {filteredUsers.map((u: any) => (
-              <tr key={u.id} className="hover:bg-white/[0.01]">
-                <td className="p-6">
-                  <div className="font-bold">{u.full_name}</div>
-                  <div className="text-[10px] opacity-50 font-mono">{u.email}</div>
-                </td>
-                <td className="p-6 font-mono text-purple-400 font-bold">{u.xp || 0} XP</td>
-                <td className="p-6"><EliteBadge variant={u.user_level}>{u.user_level === 'niveau_mz_plus' ? 'MZ+' : 'Standard'}</EliteBadge></td>
-                <td className="p-6">
-                  <CurrencyDisplay amount={u.wallets?.[0]?.balance || 0} className="font-mono text-yellow-500" vertical={true} />
-                </td>
-                <td className="p-6 text-right">
-                  <div className="flex justify-end gap-2 text-[9px] font-black uppercase text-neutral-500 tracking-wider">
-                    <span>Lecture seule (Modifications BDD)</span>
-                  </div>
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center text-neutral-500 text-xs font-medium bg-neutral-900/10">
+                  Aucun membre trouvé correspondant à vos critères de recherche.
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredUsers.map((u: any) => (
+                <tr key={u.id} className="hover:bg-white/[0.01]">
+                  <td className="p-6">
+                    <div className="font-bold flex items-center gap-2">
+                      {u.full_name}
+                      {u.is_admin && <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded">Admin</span>}
+                    </div>
+                    <div className="text-[10px] opacity-50 font-mono">{u.email}</div>
+                  </td>
+                  <td className="p-6 font-mono text-purple-400 font-bold">{u.xp || 0} XP</td>
+                  <td className="p-6">
+                    <EliteBadge variant={u.user_level}>{u.user_level === 'niveau_mz_plus' ? 'MZ+' : 'Standard'}</EliteBadge>
+                  </td>
+                  <td className="p-6">
+                    {u.is_active === false ? (
+                      <span className="px-2.5 py-1 bg-red-600/10 text-red-500 text-[9px] font-black rounded-lg uppercase tracking-wider border border-red-500/20 inline-block">
+                        En attente
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 bg-emerald-600/10 text-emerald-500 text-[9px] font-black rounded-lg uppercase tracking-wider border border-emerald-500/20 inline-block">
+                        Validé / Actif
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-6">
+                    <CurrencyDisplay amount={u.wallets?.[0]?.balance || 0} className="font-mono text-yellow-500" vertical={true} />
+                  </td>
+                  <td className="p-6 text-right">
+                    <div className="flex justify-end gap-2">
+                      {u.is_active === false ? (
+                        <button 
+                          onClick={() => updateUser(u.id, { is_active: true })}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-black font-black rounded-xl transition-all flex items-center gap-1.5 uppercase tracking-widest text-[9px]"
+                        >
+                          <Check size={12} strokeWidth={3} /> Valider
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => updateUser(u.id, { is_active: false })}
+                          className="px-3.5 py-2 bg-neutral-900 border border-red-500/30 text-red-500 hover:bg-red-950/20 font-black rounded-xl transition-all flex items-center gap-1.5 uppercase tracking-widest text-[9px]"
+                        >
+                          <X size={12} strokeWidth={3} /> Suspendre
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

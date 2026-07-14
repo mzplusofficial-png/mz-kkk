@@ -45,6 +45,7 @@ export interface UserProfile {
   username?: string;
   avatar_url?: string;
   fcm_token?: string;
+  is_active?: boolean;
 }
 
 export interface Formation {

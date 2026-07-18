@@ -103,6 +103,83 @@ async function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // MIDDLEWARE GLOBAL DE PROTECTION CONTRE LES INJECTIONS SQL (WAF)
+  app.use((req, res, next) => {
+    const decodedUrl = decodeURIComponent(req.originalUrl || req.url || '').toLowerCase();
+    
+    const suspectKeywords = [
+      'drop table', 
+      'delete from', 
+      'union select', 
+      'insert into', 
+      'pg_sleep', 
+      'xp_cmdshell'
+    ];
+
+    // Vérifier les commandes SQL critiques dans l'URL
+    for (const keyword of suspectKeywords) {
+      if (decodedUrl.includes(keyword)) {
+        console.warn(`[WAF Server] Commande SQL suspecte bloquée dans l'URL: ${keyword}`);
+        return res.status(403).json({ 
+          error: "Payload non autorisé", 
+          message: "Tentative d'injection SQL suspectée." 
+        });
+      }
+    }
+
+    // Vérifier les caractères suspects (-- et ;) combinés à des verbes SQL (ex: UPDATE, DROP)
+    if (decodedUrl.includes('--') && (decodedUrl.includes('select') || decodedUrl.includes('update') || decodedUrl.includes('delete') || decodedUrl.includes('drop'))) {
+      console.warn(`[WAF Server] Commentaire SQL suspect bloqué dans l'URL: '--'`);
+      return res.status(403).json({ 
+        error: "Payload non autorisé", 
+        message: "Caractère SQL suspect détecté." 
+      });
+    }
+
+    if (decodedUrl.includes(';') && (decodedUrl.includes('select') || decodedUrl.includes('update') || decodedUrl.includes('delete') || decodedUrl.includes('drop'))) {
+      console.warn(`[WAF Server] Séparateur SQL suspect bloqué dans l'URL: ';'`);
+      return res.status(403).json({ 
+        error: "Payload non autorisé", 
+        message: "Caractère SQL suspect détecté." 
+      });
+    }
+
+    // Inspecter le corps de la requête (req.body)
+    if (req.body && typeof req.body === 'object') {
+      try {
+        const bodyStr = JSON.stringify(req.body).toLowerCase();
+        
+        for (const keyword of suspectKeywords) {
+          if (bodyStr.includes(keyword)) {
+            console.warn(`[WAF Server] Commande SQL suspecte bloquée dans le body: ${keyword}`);
+            return res.status(403).json({ 
+              error: "Payload non autorisé", 
+              message: "Tentative d'injection SQL suspectée." 
+            });
+          }
+        }
+
+        if (bodyStr.includes('--') && (bodyStr.includes('select') || bodyStr.includes('update') || bodyStr.includes('delete') || bodyStr.includes('drop'))) {
+          console.warn(`[WAF Server] Commentaire SQL '--' suspect détecté dans le corps de la requête.`);
+          return res.status(403).json({ 
+            error: "Payload non autorisé", 
+            message: "Commentaire SQL suspect détecté." 
+          });
+        }
+
+        if (bodyStr.includes(';') && (bodyStr.includes('select') || bodyStr.includes('update') || bodyStr.includes('delete') || bodyStr.includes('drop'))) {
+          console.warn(`[WAF Server] Séparateur ';' suspect détecté dans le corps de la requête.`);
+          return res.status(403).json({ 
+            error: "Payload non autorisé", 
+            message: "Séparateur de requête suspect détecté." 
+          });
+        }
+      } catch (e) {}
+    }
+
+    next();
+  });
+
   // LOGS DE DÉBOGAGE API
   app.use((req, res, next) => {
     if (req.url.startsWith('/api/')) {

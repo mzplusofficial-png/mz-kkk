@@ -39,14 +39,14 @@ export const AdminSecurityWall: React.FC<AdminSecurityWallProps> = ({
 
     const cleanEmail = email.trim().toLowerCase();
     
-    // Strict front-end check to prevent any other email authorization attempt
-    if (!AUTHORIZED_ADMINS.includes(cleanEmail)) {
-      setError("Accès refusé : Seul l'email administrateur officiel est autorisé sur cette console.");
+    if (!cleanEmail || !password) {
+      setError("Identifiants incorrects ou accès non autorisé.");
       return;
     }
 
-    if (!password) {
-      setError("Le mot de passe administrateur est requis.");
+    // Strict check to prevent unauthorized authentication attempts
+    if (!AUTHORIZED_ADMINS.includes(cleanEmail)) {
+      setError("Identifiants incorrects ou accès non autorisé.");
       return;
     }
 
@@ -59,23 +59,19 @@ export const AdminSecurityWall: React.FC<AdminSecurityWallProps> = ({
       });
 
       if (signInError) {
-        if (signInError.message.includes('Invalid login credentials')) {
-          throw new Error("Identifiants administratifs incorrects. Veuillez réessayer.");
-        }
-        throw signInError;
+        throw new Error("Identifiants incorrects ou accès non autorisé.");
       }
 
       // Check if newly logged in session matches expected administrator
       if (!data?.user?.email || !AUTHORIZED_ADMINS.includes(data.user.email.toLowerCase())) {
         await supabase.auth.signOut();
-        throw new Error("Compte non autorisé. Déconnexion automatique.");
+        throw new Error("Identifiants incorrects ou accès non autorisé.");
       }
 
       setSuccess(true);
       if (onRefresh) onRefresh();
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Une erreur s'est produite lors de l'authentification.";
-      setError(errorMsg);
+      setError("Identifiants incorrects ou accès non autorisé.");
     } finally {
       setLoading(false);
     }
@@ -134,64 +130,7 @@ export const AdminSecurityWall: React.FC<AdminSecurityWallProps> = ({
     );
   }
 
-  // 2. Standard Session Present Warning View
-  if (userProfile && (!userProfile.email || !AUTHORIZED_ADMINS.includes(userProfile.email.toLowerCase()))) {
-    return (
-      <div className="min-h-screen bg-[#070809] flex items-center justify-center p-6 relative select-none font-sans overflow-hidden">
-        {/* Decorative Grid and Ambient Lights */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(191,155,48,0.03),transparent_70%)] pointer-events-none" />
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-red-500/5 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/3 blur-[120px] rounded-full pointer-events-none" />
-
-        <div className="w-full max-w-lg bg-[#0d0e12]/90 border border-red-500/20 rounded-[2.5rem] p-10 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative z-10 text-center space-y-8 animate-fade-in">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.15)] animate-bounce">
-            <AlertTriangle size={36} />
-          </div>
-
-          <div className="space-y-3">
-            <h2 className="text-2xl font-black uppercase text-white tracking-tight">
-              SESSION NON AUTORISÉE
-            </h2>
-            <p className="text-[#a3a3a3] text-sm leading-relaxed max-w-md mx-auto">
-              Vous êtes actuellement connecté avec l'adresse <strong className="text-white font-mono">{userProfile.email}</strong>. 
-              Cette console d'administration requiert impérativement de s'authentifier avec l'unique compte Administrateur désigné.
-            </p>
-          </div>
-
-          <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-2xl flex items-start gap-3.5 text-left text-xs text-red-400">
-            <Lock className="shrink-0 mt-0.5" size={16} />
-            <div>
-              <span className="font-bold block uppercase tracking-wider mb-0.5">Restriction de Sécurité</span>
-              Pour éviter les piratages et préserver la trésorerie de la plateforme, l'accès est scellé par double pare-feu.
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <button
-              onClick={onExit}
-              className="flex-1 px-5 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 font-bold uppercase text-xs tracking-wider text-[#d4d4d4] transition-all flex items-center justify-center gap-2"
-            >
-              <ArrowLeft size={16} /> Retourner au site
-            </button>
-            <button
-              onClick={handleDisconnectCurrentSession}
-              disabled={loading}
-              className="flex-1 px-5 py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-2xl font-bold uppercase text-xs tracking-wider text-white shadow-lg hover:shadow-red-500/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {loading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <LogOut size={16} />
-              )}
-              Se Déconnecter
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Admin Dynamic Sign-In Interface
+  // 2. Admin Dynamic Sign-In Interface (Shown to anyone who is not an authorized administrator)
   return (
     <div className="min-h-screen bg-[#070809] flex items-center justify-center p-6 relative select-none font-sans overflow-hidden">
       {/* Decorative Grid and Ambient Lights */}
@@ -246,17 +185,12 @@ export const AdminSecurityWall: React.FC<AdminSecurityWallProps> = ({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="google@gmail.com"
+                placeholder="admin@mzplus.com"
                 className="w-full pl-12 pr-4 py-4 bg-black/40 border border-white/5 rounded-2xl text-sm text-white placeholder-neutral-600 focus:border-amber-500/50 focus:bg-black/60 focus:ring-1 focus:ring-amber-500/30 transition-all font-mono outline-none"
                 required
                 disabled={loading || success}
               />
             </div>
-            {email.trim() && !AUTHORIZED_ADMINS.includes(email.trim().toLowerCase()) && (
-              <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">
-                ⚠️ Seul un email administrateur officiel est accepté.
-              </p>
-            )}
           </div>
 
           {/* Password Field */}

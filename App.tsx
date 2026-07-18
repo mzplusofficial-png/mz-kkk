@@ -100,6 +100,20 @@ const App: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Sécurité renforcée : Si un utilisateur ordinaire se connecte ou tente d'activer
+  // la vue d'administration, on le rejette immédiatement et silencieusement vers l'interface publique.
+  useEffect(() => {
+    if (session && userProfile && isAdminView) {
+      const adminEmails = ['google@gmail.com', 'millionaireobject@gmail.com', 'mzplus1@gmail.com', 'utilisateur26@gmail.com', 'ivan1@gmail.com', 'mr.sahaivan@gmail.com'];
+      const isUserAdmin = (userProfile.email && adminEmails.includes(userProfile.email.toLowerCase())) && (userProfile.is_admin === true);
+      
+      if (!isUserAdmin) {
+        setIsAdminView(false);
+        setActiveTab('dashboard');
+      }
+    }
+  }, [session, userProfile, isAdminView]);
+
   const [activeCategory, setActiveCategory] = useState<string>('main');
   const [lastUpdateSignal, setLastUpdateSignal] = useState<number>(Date.now());
   const [customerProduct, setCustomerProduct] = useState<Product | null>(null);
@@ -1328,9 +1342,8 @@ const App: React.FC = () => {
           tabParam === 'admin'
         ) {
           setIsAdminView(true);
-          if (path.includes('/admin')) {
-            window.history.replaceState({}, '', '/' + window.location.search);
-          }
+          // Nettoie l'URL totalement pour éviter d'y rester bloqué au rafraîchissement
+          window.history.replaceState({}, '', '/');
         } else if (
           path === '/offreflashpremium' || 
           path.endsWith('/offreflashpremium') || 
@@ -1569,7 +1582,8 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.reload();
+    // Redirige explicitement vers la racine sans aucun paramètre de requête ni hash d'administration
+    window.location.href = window.location.origin;
   };
 
   // GLOBAL HEARTBEAT & INACTIVITY TRACKING
@@ -1699,40 +1713,14 @@ const App: React.FC = () => {
     return <SystemInitiator loading={loading} />;
   }
 
-  if (isAdminView) {
-    return (
-      <AdminSecurityWall 
-        userProfile={userProfile} 
-        onExit={() => {
-          setIsAdminView(false);
-          setActiveTab('dashboard');
-        }}
-        onRefresh={triggerRefresh}
-      />
-    );
-  }
-
-  if (isRecoveryModalOpen) {
-    return (
-      <ResetPasswordModal 
-        isOpen={isRecoveryModalOpen} 
-        onClose={() => setIsRecoveryModalOpen(false)} 
-        onNotify={(title, body, type) => setNotification({ title, body, type })} 
-      />
-    );
-  }
-
-  if (storeOwnerCode) {
-    return <StandalonePublicStore storeOwnerCode={storeOwnerCode} />;
-  }
-  
-  if (customerProduct) return (<ProductSalesPage product={customerProduct} onPurchase={handlePurchase} purchaseStep={purchaseStep} countdown={900} isLoggedIn={!!session} />);
-  if (!session) return <LandingPage />;
-
+  // Détermination anticipée du statut admin et du blocage/validation en attente
   const adminEmails = ['google@gmail.com', 'millionaireobject@gmail.com', 'mzplus1@gmail.com', 'utilisateur26@gmail.com', 'ivan1@gmail.com', 'mr.sahaivan@gmail.com'];
   const isAdmin = (userProfile?.email && adminEmails.includes(userProfile.email.toLowerCase())) && (userProfile?.is_admin === true);
+  const isPendingValidation = userProfile && userProfile.is_active === false && !isAdmin;
 
-  if (userProfile && userProfile.is_active === false && !isAdmin) {
+  // 1. Si le compte est bloqué ou en attente de validation, on affiche TOUJOURS l'écran d'attente
+  // de manière prioritaire pour empêcher tout accès frauduleux ou message d'erreur d'administration.
+  if (isPendingValidation) {
     return (
       <div className="min-h-screen bg-[#070809] text-white flex flex-col items-center justify-center p-6 text-center select-none font-sans relative overflow-hidden">
         {/* Decorative Grid and Ambient Lights */}
@@ -1778,6 +1766,37 @@ const App: React.FC = () => {
       </div>
     );
   }
+
+  // 2. Si la vue d'administration est active, afficher le mur de sécurité
+  if (isAdminView) {
+    return (
+      <AdminSecurityWall 
+        userProfile={userProfile} 
+        onExit={() => {
+          setIsAdminView(false);
+          setActiveTab('dashboard');
+        }}
+        onRefresh={triggerRefresh}
+      />
+    );
+  }
+
+  if (isRecoveryModalOpen) {
+    return (
+      <ResetPasswordModal 
+        isOpen={isRecoveryModalOpen} 
+        onClose={() => setIsRecoveryModalOpen(false)} 
+        onNotify={(title, body, type) => setNotification({ title, body, type })} 
+      />
+    );
+  }
+
+  if (storeOwnerCode) {
+    return <StandalonePublicStore storeOwnerCode={storeOwnerCode} />;
+  }
+  
+  if (customerProduct) return (<ProductSalesPage product={customerProduct} onPurchase={handlePurchase} purchaseStep={purchaseStep} countdown={900} isLoggedIn={!!session} />);
+  if (!session) return <LandingPage />;
 
   const handleShareClose = () => {
     setShowSharePopup(false);
